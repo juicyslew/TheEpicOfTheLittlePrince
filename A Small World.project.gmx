@@ -6,12 +6,14 @@
   <NewExtensions/>
   <sounds name="sound"/>
   <sprites name="sprites">
+    <sprite>sprites\spr_block2</sprite>
     <sprite>sprites\spr_block</sprite>
     <sprite>sprites\spr_char</sprite>
     <sprite>sprites\spr_char_circ</sprite>
     <sprite>sprites\spr_grapple</sprite>
     <sprite>sprites\spr_grappleline</sprite>
     <sprite>sprites\spr_asteroid</sprite>
+    <sprite>sprites\spr_asteroid2</sprite>
     <sprite>sprites\spr_star</sprite>
     <sprite>sprites\spr_redstar</sprite>
     <sprite>sprites\spr_bluestar</sprite>

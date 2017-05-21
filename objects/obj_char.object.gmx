@@ -3,7 +3,7 @@
   <spriteName>spr_char_circ</spriteName>
   <solid>0</solid>
   <visible>-1</visible>
-  <depth>0</depth>
+  <depth>-3</depth>
   <persistent>0</persistent>
   <parentName>&lt;undefined&gt;</parentName>
   <maskName>&lt;undefined&gt;</maskName>
@@ -25,20 +25,20 @@
         <arguments>
           <argument>
             <kind>1</kind>
-            <string>w_spd = 6  //walk speed
-j_spd = 10 //jump speed
-norm_grap_force = .75  //grapple speed
+            <string>w_spd = 10  //walk speed
+j_spd = 20 //jump speed
+norm_grap_force = 1  //grapple speed
 grapstopdist = 8 //pixel distance for when player stops moving towards grapple
 //grav = 1 //gravity
 hspd = 0 //horizontal speed tracker
 vspd = 0 //vertical speed tracker
-termvel = 20 //terminal velocity
+termvel = 140 //terminal velocity
 j_max = 1 //max jumps without touching ground
 j_count = 0 //jump counter
 //instance_create(x,y,obj_gun_1)
 life = 100 //health
 mass = .5
-mingrapforce = .3 //lower = less strong grapple, more tendency to orbit, higher = straight grappling
+mingrapforce = .4 //lower = less strong grapple, more tendency to orbit, higher = straight grappling
 slowdist = 1000 //distance at which to slow down 
 grapinst = -1
 //move = 0
@@ -50,19 +50,48 @@ mincollidespd = 3
 upwalkstrength = .8
 maxupwalk = 1.5
 walk_slower = 1.1
-masspush = .4
+masspush = 2
 maxmasspush = 1
-jump_slower = 1.25
-view_turn_spd = 180 //degress per step (set to 180 for realtime turns)
-rocket_vel = 3 //strength of rocket boost
+jump_slower = .6
+view_turn_spd = 6 //degress per step (set to 180 for realtime turns)
+rocket_vel = 6 //strength of rocket boost
 rocket_timer = 0 //iterator for rocket
-rocket_maxtime = 25 //time between rocketboosts
-rocket_num = 4  //number of rockets to use
-rocket_max = 4  //number to refill to on land
+rocket_maxtime = 10 //time between rocketboosts
+rocket_num = 5  //number of rockets to use
+rocket_max = 5  //number to refill to on land
 
 nocollide = false
 nocollide_timer = 0
-nocollide_time = 25
+nocollide_time = 0
+batinst = -4 // initialize battery instance to no one
+deact_mult = 1.5
+act_square_length = max(view_wview[0], view_hview[0])
+deact_square_length = act_square_length*deact_mult
+grapinst = -4
+</string>
+          </argument>
+        </arguments>
+      </action>
+    </event>
+    <event eventtype="3" enumb="1">
+      <action>
+        <libid>1</libid>
+        <id>603</id>
+        <kind>7</kind>
+        <userelative>0</userelative>
+        <isquestion>0</isquestion>
+        <useapplyto>-1</useapplyto>
+        <exetype>2</exetype>
+        <functionname></functionname>
+        <codestring></codestring>
+        <whoName>self</whoName>
+        <relative>0</relative>
+        <isnot>0</isnot>
+        <arguments>
+          <argument>
+            <kind>1</kind>
+            <string>instance_deactivate_region(x-deact_square_length/2, y-deact_square_length/2, deact_square_length, deact_square_length, false, true)
+instance_activate_region(x-act_square_length/2, y-act_square_length/2, act_square_length, act_square_length, true)
 </string>
           </argument>
         </arguments>
@@ -113,6 +142,10 @@ for (i=0; i &lt; ds_list_size(global.all_planets); i++){
     //gforceadd += gforce
     xforceadd += gforce*-cos(distdir)
     yforceadd += gforce*sin(distdir)
+    if i = 0{
+        startplanxdir = xforceadd
+        startplanydir = yforceadd
+    }
 }
 hacc = xforceadd
 vacc = yforceadd
@@ -121,7 +154,9 @@ totacc = sqrt(sqr(hacc)+sqr(vacc))
 walk = move*w_spd* min(1, totacc*walk_slower)
 upwalk = max(0, min(upwalkstrength/totacc,maxupwalk))
 //prevdowndir = downdir
+startplandir = arctan2(-startplanydir, startplanxdir)
 downdir = arctan2(-vacc,hacc)
+startplan_angle = startplandir*180/pi+90 mod 360
 image_angle = downdir*180/pi+90 mod 360
 ang_diff = (-image_angle) - view_angle[0]
 
@@ -136,11 +171,26 @@ if abs(ang_diff) &gt; view_turn_spd and 360 - abs(ang_diff) &gt; view_turn_spd{
 }
 view_angle[0] = view_angle[0] mod 360
 inst1 = instance_place(x+sign(hacc),y+sign(vacc),obj_block)
-if instance_exists(inst1){
+if instance_exists(inst1) and (inst1.subplanetpiece or inst1.planetpiece){
     hspd = walk*-sin(downdir)
     vspd = walk*-cos(downdir)
     j_count = 0
+    old_rocket_num = rocket_num
     rocket_num = rocket_max
+    if old_rocket_num != rocket_max{
+        if instance_exists(batinst){
+            with(batinst){
+                instance_destroy()
+            }
+        }
+        batinst = instance_create(x, y, obj_battery_gui)
+        with(batinst){
+            image_angle = other.image_angle
+            charinst = other.id
+            charge = true
+            image_index = other.old_rocket_num
+        }
+    }
     if abs(move){ anymove = true}
 }else{
     if j_count &lt; 1{
@@ -150,8 +200,8 @@ if instance_exists(inst1){
 if (j_count &lt; j_max)
 {
     if (jump) {
-        hspd += -j_spd*cos(downdir)*(totacc*jump_slower)
-        vspd += -j_spd*-sin(downdir)*(totacc*jump_slower)
+        hspd += -j_spd*cos(downdir)*(sqrt(totacc)*jump_slower)
+        vspd += -j_spd*-sin(downdir)*(sqrt(totacc)*jump_slower)
         j_count+=1
         anymove = true
         //audio_play_sound(snd_jump, .5, false)
@@ -166,6 +216,22 @@ if shift and (abs(vertmove) or abs(move)) and rocket_num &gt; 0 and rocket_timer
     vspd+=-cos(downdir)*move*rocket_vel + -sin(downdir)*vertmove*rocket_vel
     rocket_num -= 1
     rocket_timer = 0
+    if instance_exists(batinst){
+        with(batinst){
+            instance_destroy()
+        }
+    }
+    batinst = instance_create(x, y, obj_battery_gui)
+    with(batinst){
+        charinst = other.id
+        charge = false
+        image_angle = other.image_angle
+        image_index = other.rocket_num
+        image_speed = 0
+    }
+    
+    pulseinst = instance_create(x, y, obj_pulse)
+    pulseinst.image_angle = image_angle
 }
 //if move != prevmove{
 
@@ -175,8 +241,8 @@ if global.grap_press and not instance_exists(obj_grapple){
     grapinst = instance_create(x, y, obj_grapple)
     with(grapinst){
         dir = arctan2(y-mouse_y, mouse_x-x)
-        hspd = spd*cos(dir)
-        vspd = spd*-sin(dir)
+        hspd = other.hspd + spd*cos(dir)
+        vspd = other.vspd + spd*-sin(dir)
         x+= sign(hspd)
         y+= sign(vspd)
     }
@@ -193,7 +259,7 @@ if global.grapped{
         grap_force = norm_grap_force* max(min(1, grapdist/slowdist), mingrapforce)
         hacc += cos(grapdir) * grap_force/mass
         vacc += -sin(grapdir) * grap_force/mass
-        if not grapinst.inst.planetpiece{
+        if instance_exists(grapinst.inst) and not grapinst.inst.planetpiece{
             grapinst.inst.hspd -= cos(grapdir) * grap_force/grapinst.inst.mass
             grapinst.inst.vspd -= -sin(grapdir) * grap_force/grapinst.inst.mass
         }
@@ -211,9 +277,9 @@ if totvel&gt; termvel{
 
 
 
-if jump{
-    global.grap = false
-}
+//if jump{
+//    global.grap = false
+//}
 if not global.grap{
     global.grapped = false
 }
@@ -221,15 +287,16 @@ if not global.grap{
 //vertical collisions
 if place_meeting(x,y+vspd, obj_block)// or (place_meeting(x,y+vspd, obj_block) and abs(prevvspd) &gt; mincollidespd)
 {
+    
     inst = instance_place(x, y+vspd, obj_block)
-    if inst.planetpiece{
+    if inst.planetpiece or inst.subplanetpiece{
         i=0
         while(!place_meeting(x,y+sign(vspd),obj_block) and i &lt; abs(vspd)) //and !place_meeting(x,y+sign(vspd),obj_block) and i &lt; abs(vspd)) //this collision detection should allow interesting glitch in which you float through a long 1 by n passage of blocks while fitting perfectly on it
         {
             y += sign(vspd)
             i += 1
         }
-        vspd = 0
+        vspd = inst.vspd
         prevhspd = 0
     }
 }
@@ -238,61 +305,63 @@ if place_meeting(x,y+vspd, obj_block)// or (place_meeting(x,y+vspd, obj_block) a
 if place_meeting(x+hspd,y, obj_block)// or (place_meeting(x+hspd,y, obj_block) and abs(prevhspd) &gt; mincollidespd)
 {
     inst = instance_place(x+hspd, y, obj_block)
-    if inst.planetpiece{
+    if inst.planetpiece or inst.subplanetpiece{
         i=0
         while(!place_meeting(x+sign(hspd),y,obj_block) and i &lt; abs(hspd)) //and !place_meeting(x,y+sign(vspd),obj_block) and i &lt; abs(vspd)) //this collision detection should allow interesting glitch in which you float through a long 1 by n passage of blocks while fitting perfectly on it
         {
             x += sign(hspd)
             i += 1
         }
-        hspd = 0
+        hspd = inst.hspd
         prevhspd = 0
     }
 }
 
 //interesting momentum collisions
-blockinst = instance_place(x, y, obj_block)
-if not nocollide and instance_exists(blockinst){
-    if blockinst.planetpiece = false{
-        mass_const = -2*blockinst.mass/(mass+blockinst.mass)
-        opp_mass_const = -2*mass/(mass+blockinst.mass)
-        xdiff = (x - blockinst.x)
-        ydiff = (y - blockinst.y)
-        sqrnorm = (sqr(xdiff)+sqr(ydiff)) 
-        momentum_const = ((hspd - blockinst.hspd)*xdiff + (vspd-blockinst.vspd)*ydiff)
-        opp_momentum_const = ((blockinst.hspd - hspd)*-xdiff + (blockinst.vspd - vspd)*-ydiff)
-        hspd += mass_const*momentum_const/sqrnorm*xdiff
-        vspd += mass_const*momentum_const/sqrnorm*ydiff
-        blockinst.hspd += opp_mass_const*opp_momentum_const/sqrnorm*-xdiff
-        blockinst.vspd += opp_mass_const*opp_momentum_const/sqrnorm*-ydiff
-        blockinst.nocollide = true
-        blockinst.nocollide_timer = 0
-        nocollide = true
-        nocollide_timer = 0
-    }
-}
-
-//if (place_meeting(x,y,obj_orbit_block))
-//{
-//    inst = instance_nearest(x, y, obj_block)
-//    interxdiff = x-inst.x
-//    interydiff = y-inst.y
-//    norm = sqrt(sqr(interxdiff)+sqr(interydiff))
-//    xdiff = interxdiff / norm
-//    ydiff = interydiff / norm
-    //if abs(hacc) &lt; mincollidespd{
-//        hacc += masspush/xdiff
-    //}
-    //if abs(vacc) &lt; mincollidespd{
-//        vacc += masspush/ydiff
-    //}
-    //if sign(xdiff)*hspd &lt; sign(xdiff)*maxmasspush{
-    //    hspd = min(sign(xdiff)*(hspd + masspush/xdiff), sign(xdiff)*maxmasspush)
-    //}
-    //if sign(ydiff)*vspd &lt; sign(ydiff)*maxmasspush{
-    //    vspd = min(sign(ydiff)*(vspd + masspush/ydiff), sign(diff)*maxmasspush)
-    //}
+//blockinst = instance_place(x, y, obj_block)
+//if not nocollide and instance_exists(blockinst){
+//    if blockinst.planetpiece = false{
+//        mass_const = -2*blockinst.mass/(mass+blockinst.mass)
+//        opp_mass_const = -2*mass/(mass+blockinst.mass)
+//        xdiff = (x - blockinst.x)
+//        ydiff = (y - blockinst.y)
+//        sqrnorm = (sqr(xdiff)+sqr(ydiff)) 
+//        momentum_const = ((hspd - blockinst.hspd)*xdiff + (vspd-blockinst.vspd)*ydiff)
+//        opp_momentum_const = ((blockinst.hspd - hspd)*-xdiff + (blockinst.vspd - vspd)*-ydiff)
+//        hspd += mass_const*momentum_const/sqrnorm*xdiff
+//        vspd += mass_const*momentum_const/sqrnorm*ydiff
+//        blockinst.hspd += opp_mass_const*opp_momentum_const/sqrnorm*-xdiff
+//        blockinst.vspd += opp_mass_const*opp_momentum_const/sqrnorm*-ydiff
+//        blockinst.nocollide = true
+//        blockinst.nocollide_timer = 0
+//        nocollide = true
+//        nocollide_timer = 0
+//    }
 //}
+
+if (place_meeting(x,y,obj_orbit_block))
+{
+    inst = instance_nearest(x, y, obj_block)
+    interxdiff = x-inst.x
+    interydiff = y-inst.y
+    norm = sqrt(sqr(interxdiff)+sqr(interydiff))
+    xdiff = interxdiff / norm
+    ydiff = interydiff / norm
+//    if abs(hacc) &lt; mincollidespd{
+//        hacc += masspush/xdiff
+//    }
+//    if abs(vacc) &lt; mincollidespd{
+//        vacc += masspush/ydiff
+//    }
+//    if sign(xdiff)*hspd &lt; sign(xdiff)*maxmasspush{
+//        hspd = min(sign(xdiff)*(hspd + masspush/xdiff), sign(xdiff)*maxmasspush)
+//    }
+//    if sign(ydiff)*vspd &lt; sign(ydiff)*maxmasspush{
+//        vspd = min(sign(ydiff)*(vspd + masspush/ydiff), sign(diff)*maxmasspush)
+//    }
+    x+=sign(xdiff)*masspush
+    y+=sign(ydiff)*masspush
+}
 
 y += vspd
 x += hspd
@@ -300,6 +369,30 @@ prevhspd = hspd
 prevvspd = vspd
 rocket_timer += 1
 nocollide_timer++;
+</string>
+          </argument>
+        </arguments>
+      </action>
+    </event>
+    <event eventtype="8" enumb="0">
+      <action>
+        <libid>1</libid>
+        <id>603</id>
+        <kind>7</kind>
+        <userelative>0</userelative>
+        <isquestion>0</isquestion>
+        <useapplyto>-1</useapplyto>
+        <exetype>2</exetype>
+        <functionname></functionname>
+        <codestring></codestring>
+        <whoName>self</whoName>
+        <relative>0</relative>
+        <isnot>0</isnot>
+        <arguments>
+          <argument>
+            <kind>1</kind>
+            <string>draw_sprite_ext(spr_char_circ, 0, x, y, 1, 1, image_angle, c_white, 1)
+draw_sprite_ext(spr_plandir, 0, x, y, 1, 1, startplan_angle, c_white, 1)
 </string>
           </argument>
         </arguments>

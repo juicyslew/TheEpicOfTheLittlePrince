@@ -26,14 +26,17 @@
           <argument>
             <kind>1</kind>
             <string>event_inherited()
+mass = 1
 hspd = 0
 vspd = 0
-orbit_dir = random_range(-1,1)
+orbit_dir = random_range(-1,1)+.65
 if orbit_dir &gt; 0{
     orbit_dir = 1
 }else{
     orbit_dir = -1
 }
+image_speed = 0
+image_index = 0
 
 planetpiece = false
 subplanetpiece = false
@@ -54,14 +57,18 @@ vacc = gforce*sin(distdir)
 
 totacc = sqrt(sqr(vacc)+sqr(hacc))
 pdist = sqrt(pdistsqr)
-velmag = sqrt(totacc*pdist)*random_range(.75,1.33)
+velmag = sqrt(totacc*pdist)*random_range(1,1.33)
 hspd = -sin(distdir)*orbit_dir*velmag
 vspd = -cos(distdir)*orbit_dir*velmag
 nocollide = false
 nocollide_timer = 0
-nocollide_time = 15
+nocollide_time = 2
 planet_index = -1
 old_planet_index = -1
+trail_time = 14
+trail_timer = 0
+pseudo_hspd = 0//hspd
+pseudo_vspd = 0//vspd
 </string>
           </argument>
         </arguments>
@@ -88,16 +95,20 @@ old_planet_index = -1
     nocollide_timer = 0
     nocollide = false
 }
+//Fsprite_index = spr_asteroid
 if subplanetpiece{
     myplanet = global.all_planets[|planet_index]
-    hspd = myplanet[|3]//each step set to zero to determine new vel
+    hspd = myplanet[|3] //each step set to zero to determine new vel
     vspd = myplanet[|4]
+//    if sprite_index != spr_asteroid4{
+//        sprite_index = spr_asteroid2
+//    }
 }
 if not planetpiece{
     xforceadd = 0
     yforceadd = 0
     for (i=0; i &lt; ds_list_size(global.all_planets); i++){
-        if subplanetpiece and planet_index = i{
+        if planet_index = i{
             continue
         }
         planet = global.all_planets[|i]
@@ -120,103 +131,224 @@ if not planetpiece{
         vspd = vspd*termvel/vel
     }
     image_angle += angvel
-    blockinst = instance_place(x,y,obj_block)
     playinst = instance_place(x,y,obj_char)
     // dnt need to run following code for playinst, optimize this later by
     // splitting into two parts.
-    if (instance_exists(blockinst) or instance_exists(playinst)) and not nocollide{
-        planet = -1
-        finind = -1
-        for (i=0; i &lt; ds_list_size(global.all_planets); i++){
-            planettry = global.all_planets[|i]
-            if planet_index == i {
-                    continue
-            }
-            //for (j=0; j &lt; ds_list_size(planettry); j++){
-            //    planetblock = ds_list_find_value(planettry, j)
-            //}
-            //obj_num = ds_list_size(planettry)
-            ind = ds_list_find_index(planettry, blockinst)
-            if ind != -1{
-                if i == 0{
-                planetpiece = true
+    
+    // FIND CENTER COLLISIONS
+    x+=10000
+    if not subplanetpiece and not planetpiece{
+        blockinst = instance_position(x-10000,y,obj_block) // place_position allows for asteroids to get closer
+        ind = -1
+    }else{
+        move_blocks = ds_list_create()
+        while true{
+            testinst = instance_position(x-10000,y,obj_block) // place_position allows for asteroids to get closer
+            ind = ds_list_find_index(myplanet, testinst)
+            if ind = -1{
+                size = ds_list_size(move_blocks)
+                for(i = 0; i &lt; size; i++){
+                    move_blocks[|i].x -= 10000
                 }
-                planet = planettry
-                finind = ind
-                if subplanetpiece{
-                    old_planet_index = planet_index
-                }
-                planet_index = i
+                blockinst = testinst
                 break
+            }else{
+                testinst.x += 10000
+                ds_list_add(move_blocks, testinst)
             }
         }
-        
-        if finind != -1{ //add to planet
-            if subplanetpiece{ //add planet to planet
-                plan = planet
-                for(i=global.infoend; i &lt; ds_list_size(myplanet); i++){
-                    subpiece_inst = myplanet[|i]
-                    ds_list_add(plan, subpiece_inst.id)
-                    myind = ds_list_find_index(myplanet, subpiece_inst.id)
-                    //ds_list_delete(myplanet, myind)
-                    ds_list_replace(plan, 0, plan[|0] + subpiece_inst.mass)
-                    obj_num = ds_list_size(plan)-global.infoend
-                    centerx = (plan[|1]*(obj_num-1)+subpiece_inst.x)/obj_num
-                    centery = (plan[|2]*(obj_num-1)+subpiece_inst.y)/obj_num
-                    ds_list_replace(plan, 1, centerx)
-                    ds_list_replace(plan, 2, centery)
-                    subpiece_inst.angvel = 0
-                    //if not planetpiece{
-                    //    subplanetpiece = true
-                    //}
-                    subpiece_inst.pseudo_hspd = hspd
-                    subpiece_inst.pseudo_vspd = vspd
+        ds_list_destroy(move_blocks)
+    }
+    x -= 10000
+    
+    // FIND OUTER EDGE COLLISIONS ON ASTEROID
+    if not subplanetpiece and not planetpiece{
+        blockinst2 = instance_place(x,y,obj_block) // place_position allows for asteroids to get closer
+        ind = -1
+    }else{
+        move_blocks = ds_list_create()
+        while true{
+            testinst2 = instance_place(x,y,obj_block) // place_position allows for asteroids to get closer
+            ind = ds_list_find_index(myplanet, testinst2)
+            if ind = -1{
+                size = ds_list_size(move_blocks)
+                for(i = 0; i &lt; size; i++){
+                    move_blocks[|i].x -= 10000
                 }
-                //ds_list_replace(global.all_planets, finind, plan)
-                old_myplanet = myplanet
-                //old_ind = planet_index
-                //planet_index = finind//ds_list_find_index(global.all_planets, plan)
-                for(i=global.infoend; i &lt; ds_list_size(old_myplanet); i++){
-                    //old_myplanet[|i].myplanet = plan
-                    if planet_index = 0{
-                        old_myplanet[|i].planetpiece = true
-                        old_myplanet[|i].subplanetpiece = false
-                    }
-                    old_myplanet[|i].planet_index = planet_index
-                }
-                //ds_list_delete(global.all_planets, old_planet_index)
-                
-                old_myplanet[|0] = 1
-                old_myplanet[|1] = -10000
-                old_myplanet[|2] = -10000
-                old_myplanet[|3] = 0
-                old_myplanet[|4] = 0
-                //old_myplanet[|5] = 
-                ls_size = ds_list_size(myplanet)
-                for(i=global.infoend; i &lt; ls_size; i++){
-                    ds_list_delete(old_myplanet, global.infoend)
-                }
-                ds_list_replace(global.all_planets, old_planet_index, old_myplanet)
-                ds_list_replace(global.all_planets, planet_index, plan)
-                if planetpiece{
-                    subplanetpiece = false
-                }
-            }else{ // add asteroid to planet
-                plan = planet
-                ds_list_add(plan, id)
-                ds_list_replace(plan, 0, plan[|0] + mass)
-                obj_num = ds_list_size(plan)-global.infoend
-                centerx = (plan[|1]*(obj_num-1)+x)/obj_num
-                centery = (plan[|2]*(obj_num-1)+y)/obj_num
-                ds_list_replace(plan, 1, centerx)
-                ds_list_replace(plan, 2, centery)
-                ds_list_replace(global.all_planets, finind, plan)
-                angvel = 0
-                if not planetpiece{
-                    subplanetpiece = true
-                }
-                myplanet = plan
+                blockinst2 = testinst2
+                break
+            }else{
+                testinst2.x += 10000
+                ds_list_add(move_blocks, testinst2)
             }
+        }
+        ds_list_destroy(move_blocks)
+    }
+    
+    if (instance_exists(blockinst2) or instance_exists(playinst)) and not nocollide{
+        if (blockinst2 != noone and instance_exists(blockinst2)){ //subplanetpiece and blockinst != noone and instance_exists(blockinst){ //if im a planet and there is a block item hitting me
+            if ind == -1{// if blockinst not in my planet
+                if instance_exists(blockinst) and (blockinst.subplanetpiece or blockinst.planetpiece){
+                    if subplanetpiece{
+                        old_p_ind = planet_index
+                        oplanet_index =  blockinst.planet_index
+                        myplanet = global.all_planets[|old_p_ind]
+                        otherplanet = global.all_planets[|oplanet_index]
+                        osize = ds_list_size(otherplanet)
+                        size = ds_list_size(myplanet)
+                        exampleinst = otherplanet[|global.infoend]
+                        for (i = global.infoend; i &lt; size; i++){
+                            inst = myplanet[|i]
+                            //add id to oplan
+                            ds_list_add(otherplanet, inst)
+                            //add mass to oplan
+                            otherplanet[|0] = otherplanet[|0] + inst.mass
+                            //determine new xcenter and ycenter for oplan
+                            obj_num = ds_list_size(otherplanet)-global.infoend
+                            otherplanet[|1] = (otherplanet[|1]*(obj_num-1)+inst.x)/obj_num
+                            otherplanet[|2] = (otherplanet[|2]*(obj_num-1)+inst.y)/obj_num
+                            
+                            //stop spinning
+                            inst.angvel = 0
+                            
+                            //set planet_index
+                            inst.planet_index = oplanet_index
+                            
+                            //change planetpiece status
+                            if exampleinst.planetpiece{
+                                inst.planetpiece = true
+                                inst.subplanetpiece = false
+                            }else{
+                                inst.planetpiece = false
+                                inst.subplanetpiece = true
+                            }
+                        }
+                        //remove ids from myplanet
+                        for (i = global.infoend; i &lt; size; i++){ //gotta have these lists separate because index errors
+                            ds_list_delete(myplanet, global.infoend)
+                        }
+                        //second for loop (through surviving planet)
+                        for (i = global.infoend; i &lt; osize; i++){
+                            inst = otherplanet[|i]
+                            //change nocollide status
+                            inst.nocollide = true
+                            inst.nocollide_timer = 0
+                        }
+                        //set stats for dead planet
+                        myplanet[|0] = 0
+                        myplanet[|1] = -10000
+                        myplanet[|2] = -10000
+                        myplanet[|3] = 0
+                        myplanet[|4] = 0
+                        //replace updated newplanet in all_planets
+                        global.all_planets[|oplanet_index] = otherplanet
+                        //replace updated  old_planet in all_planets
+                        global.all_planets[|old_p_ind] = myplanet
+                    }else{
+                        oplanet_index =  blockinst.planet_index
+                        otherplanet = global.all_planets[|oplanet_index]
+                        //add id to oplan
+                        ds_list_add(otherplanet, id)
+                        //add mass to oplan
+                        otherplanet[|0] = otherplanet[|0] + mass
+                        //determine new xcenter and ycenter for oplan
+                        obj_num = ds_list_size(otherplanet)-global.infoend
+                        otherplanet[|1] = (otherplanet[|1]*(obj_num-1)+x)/obj_num
+                        otherplanet[|2] = (otherplanet[|2]*(obj_num-1)+y)/obj_num
+                        
+                        //stop spinning
+                        angvel = 0
+                        
+                        //set planet piece val
+                        subplanetpiece = blockinst.subplanetpiece
+                        planetpiece = blockinst.planetpiece
+                        
+                        //set planet_index
+                        planet_index = blockinst.planet_index
+                        global.all_planets[|oplanet_index] = otherplanet
+                        //pseudo_hspd = hspd
+                        //pseudo_vspd = vspd
+                    }
+                }else{
+                    if not subplanetpiece and not blockinst2.subplanetpiece and not blockinst2.planetpiece{ //asteroid to asteroid collisions
+                        veldiffmag = sqrt(sqr(hspd-blockinst2.hspd)+sqr(vspd-blockinst2.vspd))
+                        if veldiffmag &gt; global.planet_vel_requirement{ //making a new planet CHANGE THIS FROM BLOCKINST2 TO BLOCKINST AT SOME POINT
+                            //create new planet info
+                            newplanet = ds_list_create()
+                            ds_list_add(newplanet, 0, 0, 0, 0, 0)
+                            
+                            //add current object and blockinst2 to planet
+                            ds_list_add(newplanet, id)
+                            ds_list_replace(newplanet, 0, newplanet[|0] + mass)
+                            obj_num = ds_list_size(newplanet)-global.infoend
+                            centerx = (newplanet[|1]*(obj_num-1)+x)/obj_num
+                            centery = (newplanet[|2]*(obj_num-1)+y)/obj_num
+                            ds_list_replace(newplanet, 1, centerx)
+                            ds_list_replace(newplanet, 2, centery)
+                            //ds_list_replace(global.all_planets, finind, plan)
+                            subplanetpiece = true
+                            planetpiece = false
+                            angvel = 0
+                            //pseudo_hspd = hspd
+                            //pseudo_vspd = vspd
+                            
+                            ds_list_add(newplanet, blockinst2.id)
+                            ds_list_replace(newplanet, 0, newplanet[|0] + blockinst2.mass)
+                            obj_num = ds_list_size(newplanet)-global.infoend
+                            centerx = (newplanet[|1]*(obj_num-1)+blockinst2.x)/obj_num
+                            centery = (newplanet[|2]*(obj_num-1)+blockinst2.y)/obj_num
+                            ds_list_replace(newplanet, 1, centerx)
+                            ds_list_replace(newplanet, 2, centery)
+                            //ds_list_replace(global.all_planets, finind, plan)
+                            blockinst2.subplanetpiece = true
+                            blockinst2.planetpiece = false
+                            blockinst2.angvel = 0
+                            blockinst2.pseudo_hspd = blockinst2.hspd
+                            blockinst2.pseudo_vspd = blockinst2.vspd
+                            //blockinst.hspd = 0
+                            //blockinst.vspd = 0
+                            //add planet to all_planets
+                            ds_list_add(global.all_planets, newplanet)
+                            planet_index = ds_list_find_index(global.all_planets, newplanet)
+                            blockinst2.planet_index = planet_index
+                            myplanet = newplanet
+                            blockinst2.myplanet = newplanet
+                            blockinst2.nocollide = true
+                            blockinst2.nocollide_timer = 0
+                            nocollide = true
+                            nocollde_timer = 0
+                            //add subplanet_piece boolean to this and blockinst
+                        }else{ //momentum collision
+                            mass_const = -2*blockinst2.mass/(mass+blockinst2.mass)
+                            opp_mass_const = -2*mass/(mass+blockinst2.mass)
+                            xdiff = (x - blockinst2.x)
+                            ydiff = (y - blockinst2.y)
+                            sqrnorm = (sqr(xdiff)+sqr(ydiff)) 
+                            momentum_const = ((hspd - blockinst2.hspd)*xdiff + (vspd-blockinst2.vspd)*ydiff)
+                            opp_momentum_const = ((blockinst2.hspd - hspd)*-xdiff + (blockinst2.vspd - vspd)*-ydiff)
+                            hspd += mass_const*momentum_const/sqrnorm*xdiff
+                            vspd += mass_const*momentum_const/sqrnorm*ydiff
+                            blockinst2.hspd += opp_mass_const*opp_momentum_const/sqrnorm*-xdiff
+                            blockinst2.vspd += opp_mass_const*opp_momentum_const/sqrnorm*-ydiff
+                            blockinst2.nocollide = true
+                            blockinst2.nocollide_timer = 0
+                            nocollide = true
+                            nocollde_timer = 0
+                        }
+                    }
+                }
+            }
+            //}else{ //if blockinst is in myplanet
+                //do nothing
+            //}
+            //blockinst.
+        
+            //CHECK THAT BLOCK ITEM IS NOT FROM MY PLANET
+            // if i am a planet and thing hitting me is a planet
+                //add all my pieces to hitting thing
+            //if i am an asteroid and i hit a planet
+                //add me to it
+        //else:
         }else{
             if instance_exists(playinst){ //player momentum equations
                 if subplanetpiece{ // planet and person
@@ -233,14 +365,16 @@ if not planetpiece{
                     sqrnorm = (sqr(xdiff)+sqr(ydiff)) 
                     momentum_const = ((c_plan_vx - playinst.hspd)*xdiff + (c_plan_vy-playinst.vspd)*ydiff)
                     opp_momentum_const = ((playinst.hspd - c_plan_vx)*-xdiff + (playinst.vspd - c_plan_vy)*-ydiff)
-                    c_plan_x += mass_const*momentum_const/sqrnorm*xdiff
-                    c_plan_y += mass_const*momentum_const/sqrnorm*ydiff
+                    c_plan_vx += mass_const*momentum_const/sqrnorm*xdiff
+                    c_plan_vy += mass_const*momentum_const/sqrnorm*ydiff
+                    //currently these velocities are overwritten by the orbit blocks inside the planet.
                     playinst.hspd += opp_mass_const*opp_momentum_const/sqrnorm*-xdiff
                     playinst.vspd += opp_mass_const*opp_momentum_const/sqrnorm*-ydiff
                     playinst.nocollide = true
                     playinst.nocollide_timer = 0
                     nocollide_timer = 0
                     nocollide = true
+                    global.all_planets[|planet_index] = c_plan
                 }else{ // asteroid and person
                     mass_const = -2*playinst.mass/(mass+playinst.mass)
                     opp_mass_const = -2*mass/(mass+playinst.mass)
@@ -258,86 +392,41 @@ if not planetpiece{
                     nocollide_timer = 0
                     nocollide = true
                 }
-            }else{
-                if not subplanetpiece and not blockinst.subplanetpiece{ //asteroid to asteroid collisions
-                    veldiffmag = sqrt(sqr(hspd-blockinst.hspd)+sqr(vspd-blockinst.vspd))
-                    if veldiffmag &gt; global.planet_vel_requirement{ //making a new planet
-                        //create new planet info
-                        newplanet = ds_list_create()
-                        ds_list_add(newplanet, 0, 0, 0, 0, 0)
-                        
-                        //add current object and blockinst to planet
-                        ds_list_add(newplanet, id)
-                        ds_list_replace(newplanet, 0, newplanet[|0] + mass)
-                        obj_num = ds_list_size(newplanet)-global.infoend
-                        centerx = (newplanet[|1]*(obj_num-1)+x)/obj_num
-                        centery = (newplanet[|2]*(obj_num-1)+y)/obj_num
-                        ds_list_replace(newplanet, 1, centerx)
-                        ds_list_replace(newplanet, 2, centery)
-                        //ds_list_replace(global.all_planets, finind, plan)
-                        subplanetpiece = true
-                        angvel = 0
-                        pseudo_hspd = hspd
-                        pseudo_vspd = vspd
-                        
-                        ds_list_add(newplanet, blockinst.id)
-                        ds_list_replace(newplanet, 0, newplanet[|0] + blockinst.mass)
-                        obj_num = ds_list_size(newplanet)-global.infoend
-                        centerx = (newplanet[|1]*(obj_num-1)+blockinst.x)/obj_num
-                        centery = (newplanet[|2]*(obj_num-1)+blockinst.y)/obj_num
-                        ds_list_replace(newplanet, 1, centerx)
-                        ds_list_replace(newplanet, 2, centery)
-                        //ds_list_replace(global.all_planets, finind, plan)
-                        blockinst.subplanetpiece = true
-                        blockinst.angvel = 0
-                        blockinst.pseudo_hspd = blockinst.hspd
-                        blockinst.pseudo_vspd = blockinst.vspd
-                        //blockinst.hspd = 0
-                        //blockinst.vspd = 0
-                        //add planet to all_planets
-                        ds_list_add(global.all_planets, newplanet)
-                        planet_index = ds_list_find_index(global.all_planets, newplanet)
-                        blockinst.planet_index = planet_index
-                        myplanet = newplanet
-                        blockinst.myplanet = newplanet
-                        //add subplanet_piece boolean to this and blockinst
-                    }else{ //momentum collision
-                        mass_const = -2*blockinst.mass/(mass+blockinst.mass)
-                        opp_mass_const = -2*mass/(mass+blockinst.mass)
-                        xdiff = (x - blockinst.x)
-                        ydiff = (y - blockinst.y)
-                        sqrnorm = (sqr(xdiff)+sqr(ydiff)) 
-                        momentum_const = ((hspd - blockinst.hspd)*xdiff + (vspd-blockinst.vspd)*ydiff)
-                        opp_momentum_const = ((blockinst.hspd - hspd)*-xdiff + (blockinst.vspd - vspd)*-ydiff)
-                        hspd += mass_const*momentum_const/sqrnorm*xdiff
-                        vspd += mass_const*momentum_const/sqrnorm*ydiff
-                        blockinst.hspd += opp_mass_const*opp_momentum_const/sqrnorm*-xdiff
-                        blockinst.vspd += opp_mass_const*opp_momentum_const/sqrnorm*-ydiff
-                        blockinst.nocollide = true
-                        blockinst.nocollide_timer = 0
-                        nocollide = true
-                        nocollde_timer = 0
-                    }
-                }
             }
         }
     }
 }
 if subplanetpiece{
     //planet_index = ds_list_find_index(global.all_planets, myplanet)
-    myplanet = global.all_planets[|planet_index]
-    pseudo_hspd = hspd
-    pseudo_vspd = vspd
-    hspd = myplanet[|3]//each step set to zero to determine new vel
-    vspd = myplanet[|4]
+    //sprite_index = spr_asteroid2
+    if planet_index = 1{
+        //sprite_index = spr_asteroid4
+    }
 }
 if planetpiece{
-    pseudo_hspd = 0
-    pseudo_vspd = 0
+    //sprite_index = spr_asteroid3
+}else{
+    //if not subplanetpiece and not sprite_index = spr_asteroid{
+    //    sprite_index = spr_asteroid4
+    //}
+    /*trail_timer ++;
+    if (trail_timer &gt; trail_time) {
+        inst = instance_create(x,y,obj_asteroid_trail)
+        inst.image_angle = image_angle
+        inst.image_index = image_index
+        //inst.sprite_index = sprite_index
+        trail_timer = 0
+    }*/
 }
 if not planetpiece and not subplanetpiece{
 x+=hspd
 y+=vspd
+}else{
+myplanet = global.all_planets[|planet_index]
+pseudo_hspd = hspd
+pseudo_vspd = vspd
+hspd = myplanet[|3] //each step set to zero to determine new vel
+vspd = myplanet[|4]
 }
 nocollide_timer++;
 </string>

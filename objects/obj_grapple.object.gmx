@@ -26,16 +26,46 @@
           <argument>
             <kind>1</kind>
             <string>char_inst = instance_nearest(x,y,obj_char)
-spd = 60
-acc = -2.6
-destroy_dist = 40
+spd = 110
+acc = -4
+destroy_dist = 100
 damp = .95
 t = 0
 grap_invul = 10
 collided = false
 inst = false
+reelin = false
+reelin_timer = 0
+reelin_time = 40
+justgrapped = false
+
+//**physics**//
+
+/*offset_y = 0;
+host = self
+nextRope = instance_create(x,y+offset_y, obj_grapline)
+
+attach = physics_joint_distance_create(host, nextRope, host.x, host.y, nextRope.x, nextRope.y, false)
+physics_joint_set_value(attach, phy_joint_damping_ratio, 1) // Controls the springiness
+physics_joint_set_value(attach, phy_joint_frequency, 10) // Controls the frequency of rope updates
 
 
+with(nextRope){
+    parent = other.id
+}
+
+repeat(30){
+    offset_y += 2
+    lastRope = nextRope
+    nextRope = instance_create(x,y+offset_y, obj_grapline)
+    link = physics_joint_distance_create(lastRope, nextRope, lastRope.x, lastRope.y, nextRope.x, nextRope.y, false)
+    physics_joint_set_value(link, phy_joint_damping_ratio, 1) // Controls the springiness
+    physics_joint_set_value(link, phy_joint_frequency, 10) // Controls the frequency of rope updates
+
+    with(nextRope){
+        parent = other.lastRope
+    }
+}*/
 </string>
           </argument>
         </arguments>
@@ -60,10 +90,35 @@ inst = false
             <kind>1</kind>
             <string>imdir = arctan2(char_inst.y-y, x-char_inst.x)
 image_angle = imdir*180/pi-90
+if reelin_timer &gt; reelin_time{
+    reelin = true
+}
 
 if global.grapped{
-    if inst = false{
-        inst = instance_place(x, y, obj_block)
+    if justgrapped = true{
+        justgrapped = false
+        inst = instance_nearest(x+hspd, y+vspd, obj_block)
+        if inst.object_index != obj_start_block{
+            if inst.image_index+1 &lt; inst.image_number{
+                inst.image_index += 1
+            }else{
+                if inst.planet_index &gt; -1 {
+                    tempplan = global.all_planets[|inst.planet_index]
+                    ind = ds_list_find_index(tempplan, inst)
+                    obj_num = ds_list_size(tempplan) - global.infoend
+                    tempplan[|0] -= inst.mass
+                    tempplan[|1] = (obj_num*tempplan[|1]-inst.x)/(obj_num-1)
+                    tempplan[|2] = (obj_num*tempplan[|1]-inst.x)/(obj_num-1)
+                    ds_list_delete(tempplan, ind)
+                    global.grapped = false
+                    global.grap = false
+                    reelin = true
+                }
+                with(inst){
+                    instance_destroy()
+                }
+            }
+        }
     }
     hspd = 0
     vspd = 0
@@ -81,6 +136,7 @@ if global.grapped{
         vspd = 0
     }
 }else{
+    justgrapped = true
     inst = false
     collided = false
     dist = sqrt(power(x-char_inst.x, 2) + power(y-char_inst.y,2))
@@ -92,41 +148,58 @@ if global.grapped{
     if dist &lt; destroy_dist and t &gt; grap_invul{
         instance_destroy()
     }
-    if spd &gt; 0{
-        //vertical collisions
-        if (place_meeting(x,y+vspd, obj_block))
+    //general collisions
+    if (place_meeting(x+hspd,y+vspd, obj_block))
+    {
+        inst = instance_place(x+hspd, y+vspd, obj_block)
+        i=0
+        totspd = sqrt(sqr(hspd)+sqr(vspd))
+        while(!place_meeting(x-sign(hspd),y-sign(vspd),obj_block) and i &lt; abs(totspd)) //and !place_meeting(x,y+sign(vspd),obj_block) and i &lt; abs(vspd)) //this collision detection should allow interesting glitch in which you float through a long 1 by n passage of blocks while fitting perfectly on it
         {
-            inst = instance_place(x, y+vspd, obj_block)
-            i=0
-            while(!place_meeting(x,y-sign(vspd),obj_block) and i &lt; abs(vspd)) //and !place_meeting(x,y+sign(vspd),obj_block) and i &lt; abs(vspd)) //this collision detection should allow interesting glitch in which you float through a long 1 by n passage of blocks while fitting perfectly on it
-            {
-                y += sign(vspd)
-                i += 1
-            }
-            //vspd = 0
-            collided = true
+            y += vspd/totspd
+            x += hspd/totspd
+            i += 1
         }
-        
-        //horizontal collisions
-        if (place_meeting(x+hspd,y, obj_block))
+        //vspd = 0
+        collided = true
+    }
+    //halfspeed collisions come up with better way
+    if (place_meeting(x+hspd/2,y+vspd/2, obj_block))
+    {
+        inst = instance_place(x+hspd/2, y+vspd/2, obj_block)
+        i=0
+        totspd = sqrt(sqr(hspd/2)+sqr(vspd/2))
+        while(!place_meeting(x-sign(hspd/2),y-sign(vspd/2),obj_block) and i &lt; abs(totspd)) //and !place_meeting(x,y+sign(vspd),obj_block) and i &lt; abs(vspd)) //this collision detection should allow interesting glitch in which you float through a long 1 by n passage of blocks while fitting perfectly on it
         {
-            inst = instance_place(x+hspd, y, obj_block)
-            i=0
-            while(!place_meeting(x-sign(hspd),y,obj_block) and i &lt; abs(hspd)) //and !place_meeting(x,y+sign(vspd),obj_block) and i &lt; abs(vspd)) //this collision detection should allow interesting glitch in which you float through a long 1 by n passage of blocks while fitting perfectly on it
-            {
-                x += sign(hspd)
-                i += 1
-            }
-            //hspd = 0
-            collided = true
+            y += vspd/totspd/2
+            x += hspd/totspd/2
+            i += 1
         }
-        if collided{
+        //vspd = 0
+        collided = true
+    }
+    
+    //horizontal collisions
+    /*if (place_meeting(x+hspd,y, obj_block))
+    {
+        inst = instance_place(x+hspd, y, obj_block)
+        i=0
+        while(!place_meeting(x-sign(hspd),y,obj_block) and i &lt; abs(hspd)) //and !place_meeting(x,y+sign(vspd),obj_block) and i &lt; abs(vspd)) //this collision detection should allow interesting glitch in which you float through a long 1 by n passage of blocks while fitting perfectly on it
+        {
+            x += sign(hspd)
+            i += 1
+        }
+        //hspd = 0
+        collided = true
+    }*/
+    if collided{
+        if not reelin{
             hspd = 0
             vspd = 0
             spd = 0
-            if global.grap{
-                global.grapped = true
-            }
+        }
+        if global.grap{
+            global.grapped = true
         }
     }
     hspd*=damp
@@ -136,6 +209,7 @@ if global.grapped{
 x += hspd
 y += vspd
 t+=1
+reelin_timer++;
 
 </string>
           </argument>
@@ -146,7 +220,7 @@ t+=1
   <PhysicsObject>0</PhysicsObject>
   <PhysicsObjectSensor>0</PhysicsObjectSensor>
   <PhysicsObjectShape>0</PhysicsObjectShape>
-  <PhysicsObjectDensity>0.5</PhysicsObjectDensity>
+  <PhysicsObjectDensity>0</PhysicsObjectDensity>
   <PhysicsObjectRestitution>0.100000001490116</PhysicsObjectRestitution>
   <PhysicsObjectGroup>0</PhysicsObjectGroup>
   <PhysicsObjectLinearDamping>0.100000001490116</PhysicsObjectLinearDamping>

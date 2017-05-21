@@ -25,8 +25,11 @@
         <arguments>
           <argument>
             <kind>1</kind>
-            <string>termvel = 20
-
+            <string>termvel = 150
+charinst = instance_nearest(x,y,obj_char)
+x = charinst.x
+y = charinst.y
+//NEED TO ADD TERMINAL VELOCITY TO STEP SCRIPT
 </string>
           </argument>
         </arguments>
@@ -49,22 +52,36 @@
         <arguments>
           <argument>
             <kind>1</kind>
-            <string>for (p=1; p&lt;ds_list_size(global.all_planets); p++){
+            <string>x = charinst.x
+y = charinst.y
+startplan = global.all_planets[|0]
+startsize = ds_list_size(startplan)
+for (i = global.infoend; i &lt; startsize; i++){
+    instance_activate_object(startplan[|i])
+}
+for (p=1; p&lt;ds_list_size(global.all_planets); p++){
     pinfo = global.all_planets[|p]
     mymass = pinfo[|0]
     myx = pinfo[|1]
     myy = pinfo[|2]
     //myvx = pinfo[|3]
     //myvy = pinfo[|4]
-    avevx=0
-    avevy=0
-    for (i=global.infoend; i &lt; ds_list_size(pinfo); i++){
-        blockinst = pinfo[|i]
-        avevx += blockinst.pseudo_hspd * blockinst.mass
-        avevy += blockinst.pseudo_vspd * blockinst.mass
+    if mymass &lt;=.1{
+        myvx = 0
+        myvy = 0
+    }else{
+        avevx=0
+        avevy=0
+        for (i=global.infoend; i &lt; ds_list_size(pinfo); i++){
+            blockinst = pinfo[|i]
+            avevx += blockinst.pseudo_hspd * blockinst.mass
+            avevy += blockinst.pseudo_vspd * blockinst.mass
+        }
+        
+        myvx = avevx/mymass
+        myvy = avevy/mymass
     }
-    myvx = avevx/mymass
-    myvy = avevy/mymass
+    // NEED TO ADD TERMINAL VELOCITY
     
     pinfo[|3] = myvx
     pinfo[|4] = myvy
@@ -75,7 +92,7 @@
         blockinst = pinfo[|i]
         blockinst.x += myvx
         blockinst.y += myvy
-   }
+    }
 }
 
 </string>

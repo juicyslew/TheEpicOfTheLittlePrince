@@ -3,7 +3,7 @@
   <spriteName>spr_block</spriteName>
   <solid>0</solid>
   <visible>-1</visible>
-  <depth>0</depth>
+  <depth>-1</depth>
   <persistent>0</persistent>
   <parentName>obj_block</parentName>
   <maskName>&lt;undefined&gt;</maskName>
@@ -36,13 +36,15 @@ centery = (startplan[|2]*(obj_num-1)+y)/obj_num
 ds_list_replace(startplan, 1, centerx)
 ds_list_replace(startplan, 2, centery)
 
-ds_list_replace(global.all_planets, 0, startplan)
+ 
 angvel = 0
 hspd = 0
 vspd = 0
 planetpiece = true
+subplanetpiece = false
 pseudo_hspd = 0
 pseudo_vspd = 0
+planet_index = 0
 </string>
           </argument>
         </arguments>

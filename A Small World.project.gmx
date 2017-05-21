@@ -14,24 +14,35 @@
     <sprite>sprites\spr_grappleline</sprite>
     <sprite>sprites\spr_asteroid</sprite>
     <sprite>sprites\spr_asteroid2</sprite>
+    <sprite>sprites\spr_asteroid3</sprite>
+    <sprite>sprites\spr_asteroid4</sprite>
     <sprite>sprites\spr_star</sprite>
     <sprite>sprites\spr_redstar</sprite>
     <sprite>sprites\spr_bluestar</sprite>
+    <sprite>sprites\spr_pulse</sprite>
+    <sprite>sprites\spr_battery</sprite>
+    <sprite>sprites\spr_plandir</sprite>
   </sprites>
   <backgrounds name="background">
     <background>background\background0</background>
   </backgrounds>
   <paths name="paths"/>
+  <fonts name="fonts">
+    <font>fonts\Score_Font</font>
+  </fonts>
   <objects name="objects">
-    <object>objects\obj_gcont</object>
-    <object>objects\obj_planet_pcont</object>
     <object>objects\obj_block</object>
+    <object>objects\obj_gcont</object>
     <object>objects\obj_char</object>
+    <object>objects\obj_planet_pcont</object>
     <object>objects\obj_grapple</object>
-    <object>objects\obj_grappleline</object>
+    <object>objects\obj_grapline</object>
     <object>objects\obj_start_block</object>
     <object>objects\obj_orbit_block</object>
     <object>objects\obj_star</object>
+    <object>objects\obj_asteroid_trail</object>
+    <object>objects\obj_battery_gui</object>
+    <object>objects\obj_pulse</object>
   </objects>
   <rooms name="rooms">
     <room>rooms\Start_Game</room>

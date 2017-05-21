@@ -28,8 +28,8 @@
             <string>randomize();
 startplan = ds_list_create()
 startmass = 0
-startloc_x = 1000
-startloc_y = 1148
+startloc_x = 5056
+startloc_y = 4960
 start_vel_x = 0
 start_vel_y = 0
 //start_acc_x = 0
@@ -37,26 +37,70 @@ start_vel_y = 0
 ds_list_add(startplan, startmass, startloc_x, startloc_y, start_vel_x, start_vel_y) //, start_acc_x, start_acc_y)
 
 global.infoend = 5
-global.gconst = 100
+global.gconst = 400
 global.all_planets = ds_list_create()
 ds_list_add(global.all_planets, startplan)
 //global.all_planets[0] = startplanet;
 
-global.planet_vel_requirement = 2
+global.planet_vel_requirement = 7
 global.grapped = false
-r = 500
+r = 3000
 asteroid_timer = 0
-asteroid_interval = 40
-playerloc_x = 1000
-playerloc_y = 900
-instance_create(playerloc_x, playerloc_y, obj_char)
+asteroid_interval = 18
+//asteroid_start_tries_num = 60
+minspawndist = 350
+playerloc_x = 5056
+playerloc_y = 4600
+x=playerloc_x
+y=playerloc_y
+charinst=instance_create(playerloc_x, playerloc_y, obj_char)
 //for (i = 0; i &lt; 6; i++){
 //    inst = instance_create(random_range(startloc_x-r, startloc_x+r), random_range(startloc_y-r, startloc_y+r), obj_orbit_block)
 //}
-star_count = 200
+star_count = 900
 for (i = 0; i&lt;star_count; i++){
     instance_create(random_range(0, room_width), random_range(0, room_height), obj_star)
 }
+/*for (i = 0; i&lt;asteroid_start_tries_num; i++){
+    testx = random_range(startloc_x-r, startloc_x+r)
+    testy = random_range(startloc_y-r, startloc_y+r)
+    chardist = sqrt(sqr(charinst.x-testx)+sqr(charinst.y-testy))
+    if chardist &gt; minspawndist{
+        blockinst = instance_nearest(testx,testy, obj_block)
+        blockdist = sqrt(sqr(blockinst.x-testx)+sqr(blockinst.y-testy))
+        if blockdist &gt; minspawndist{
+            inst = instance_create(testx, testy, obj_orbit_block)
+        }
+    } 
+}*/
+
+draw_set_valign(fa_top);
+draw_set_halign(fa_left);
+batx = 32
+baty = 100 
+</string>
+          </argument>
+        </arguments>
+      </action>
+    </event>
+    <event eventtype="3" enumb="1">
+      <action>
+        <libid>1</libid>
+        <id>603</id>
+        <kind>7</kind>
+        <userelative>0</userelative>
+        <isquestion>0</isquestion>
+        <useapplyto>-1</useapplyto>
+        <exetype>2</exetype>
+        <functionname></functionname>
+        <codestring></codestring>
+        <whoName>self</whoName>
+        <relative>0</relative>
+        <isnot>0</isnot>
+        <arguments>
+          <argument>
+            <kind>1</kind>
+            <string>instance_activate_all()
 </string>
           </argument>
         </arguments>
@@ -79,17 +123,57 @@ for (i = 0; i&lt;star_count; i++){
         <arguments>
           <argument>
             <kind>1</kind>
-            <string>if asteroid_timer &gt; asteroid_interval{
-    instance_create(random_range(startloc_x-r, startloc_x+r), random_range(startloc_y-r, startloc_y+r), obj_orbit_block)
-    asteroid_timer = 0
+            <string>startplan = global.all_planets[|0]
+if asteroid_timer &gt; asteroid_interval{
+    testx = random_range(startloc_x-r, startloc_x+r)
+    testy = random_range(startloc_y-r, startloc_y+r)
+    chardist = sqrt(sqr(charinst.x-testx)+sqr(charinst.y-testy))
+    if chardist &gt; minspawndist{
+        blockinst = instance_nearest(testx,testy, obj_block)
+        blockdist = sqrt(sqr(blockinst.x-testx)+sqr(blockinst.y-testy))
+        if blockdist &gt; minspawndist{
+            inst = instance_create(testx, testy, obj_orbit_block)
+            asteroid_timer = 0
+        }
+    } 
 }
-for (i=0; i &lt; ds_list_size(global.all_planets); i++){
-    planet = global.all_planets[|i]
-    if ds_list_size(planet) &lt; global.infoend{
-        ds_list_delete(global.all_planets, i)
-    }
-}
+x = charinst.x
+y = charinst.y
+//for (i=0; i &lt; ds_list_size(global.all_planets); i++){
+//    planet = global.all_planets[|i]
+//    if ds_list_size(planet) &lt; global.infoend{
+//        ds_list_delete(global.all_planets, i)
+//    }
+//}
 asteroid_timer++;
+</string>
+          </argument>
+        </arguments>
+      </action>
+    </event>
+    <event eventtype="8" enumb="64">
+      <action>
+        <libid>1</libid>
+        <id>603</id>
+        <kind>7</kind>
+        <userelative>0</userelative>
+        <isquestion>0</isquestion>
+        <useapplyto>-1</useapplyto>
+        <exetype>2</exetype>
+        <functionname></functionname>
+        <codestring></codestring>
+        <whoName>self</whoName>
+        <relative>0</relative>
+        <isnot>0</isnot>
+        <arguments>
+          <argument>
+            <kind>1</kind>
+            <string>startplan = global.all_planets[|0]
+draw_set_color(c_white)
+draw_set_font(Score_Font)
+
+draw_text(0, 0, "Mass: " + string(startplan[|0]))
+draw_sprite_ext(spr_battery, charinst.rocket_num, batx, baty, 2, 2, 0, c_white, 1);
 </string>
           </argument>
         </arguments>
